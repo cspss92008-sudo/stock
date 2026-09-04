@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>明日處置候選</title>
+<style>
+  :root{--bg:#141826;--card:#1c2133;--cell:#10131f;--line:#2a3147;--fg:#eef0f6;--mute:#8b93ab;--red:#e5433c;--amber:#e0a23a;--link:#8f8bff;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;font-size:15px;line-height:1.5}
+  header{padding:22px 18px 8px;max-width:760px;margin:0 auto}
+  header h1{margin:0;font-size:22px;font-weight:700}
+  header p{margin:4px 0 0;color:var(--mute);font-size:13px}
+  main{max-width:760px;margin:0 auto;padding:10px 12px 60px}
+  .card{background:var(--card);border-radius:18px;padding:18px 16px;margin-bottom:14px}
+  .top{display:flex;align-items:center;gap:12px}
+  .badge{border-radius:999px;padding:5px 13px;font-weight:700;font-size:14px;background:var(--amber);color:#1b1500}
+  .badge.high{background:var(--red);color:#fff}
+  .name{font-size:22px;font-weight:700}
+  .code{color:var(--mute);font-size:16px;margin-left:6px}
+  .left{margin-left:auto;color:var(--mute);font-size:14px;white-space:nowrap}
+  .left b{color:var(--red);font-size:26px;margin:0 3px}
+  .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:16px 0 14px}
+  .cell{aspect-ratio:1;border-radius:9px;background:var(--cell);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--mute)}
+  .cell.hit{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+  .cell.c1{box-shadow:inset 0 0 0 2px #ffd0cd}
+  .reason{font-size:18px;font-weight:700;margin-bottom:10px}
+  .target{background:var(--cell);border-radius:12px;padding:12px 14px;font-size:17px;font-weight:600}
+  .target span{color:var(--mute);font-weight:400;font-size:13px;display:block;margin-top:3px}
+  details{margin-top:10px;color:var(--link)}
+  details summary{cursor:pointer;font-weight:600}
+  details dl{color:var(--fg);display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0 0;font-size:14px}
+  details dt{color:var(--mute)}
+  .empty{color:var(--mute);text-align:center;padding:60px 0}
+  footer{color:var(--mute);font-size:12px;text-align:center;padding:10px 18px 30px;max-width:760px;margin:0 auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>明日處置候選</h1>
+  <p id="meta">載入中…</p>
+</header>
+<main id="list"></main>
+<footer>依證交所／櫃買中心「公布注意交易資訊暨處置作業要點」第 6 條反推，門檻價為估算值，未計入與大盤／類股平均差幅條件。僅供研究，不構成投資建議。</footer>
+
+<script>
+const REASON = {
+  A: "近期漲跌劇烈（連續第一款）",
+  B: "連續多日注意（一～八款）",
+  C: "十日內注意次數偏多",
+  D: "三十日內注意次數偏多"
+};
+function reasonText(item){
+  const t = item.觸發條件 || "";
+  if (t.includes("A")) return (item.今日款別||"").includes("6") ? "本益比／淨值比偏高且漲跌劇烈" : REASON.A;
+  if ((item.今日款別||"").includes("6")) return "本益比／淨值比偏高";
+  if (t.includes("B")) return REASON.B;
+  if (t.includes("C")) return REASON.C;
+  return REASON.D;
+}
+function targetText(item){
+  const t = item.觸發條件 || "";
+  if (t.includes("A") && item.第一款門檻價)
+    return `明天漲過 ${Number(item.第一款門檻價).toLocaleString()} 就進處置`;
+  if ((item.今日款別||"").includes("6") && item["第六款門檻價(PBR6)"])
+    return `明天收在 ${Number(item["第六款門檻價(PBR6)"]).toLocaleString()} 以上且週轉率 ≥ 5% 就進處置`;
+  return "明天再被列注意（一～八款任一）就進處置";
+}
+function render(data){
+  document.getElementById("meta").textContent =
+    `基準日 ${data.base_date}　更新 ${data.generated}　共 ${data.items.length} 檔`;
+  const root = document.getElementById("list");
+  if (!data.items.length){ root.innerHTML = '<p class="empty">今天沒有差一天就進處置的股票。</p>'; return; }
+  root.innerHTML = data.items.map(it => `
+    <section class="card">
+      <div class="top">
+        <span class="badge ${it.風險等級 === "高" ? "high" : ""}">${it.風險等級}風險</span>
+        <span class="name">${it.名稱}<span class="code">${it.代號}</span></span>
+        <span class="left">剩<b>1</b>次</span>
+      </div>
+      <div class="grid">
+        ${it.grid.map(g => `<div class="cell ${g.hit ? "hit" : ""} ${g.c1 ? "c1" : ""}" title="${g.d}">${parseInt(g.d.slice(3))}</div>`).join("")}
+      </div>
+      <div class="reason">${reasonText(it)}</div>
+      <div class="target">◎ ${targetText(it)}
+        <span>今日收盤 ${it.今日收盤 ?? "—"}　${it.市場}</span></div>
+      <details><summary>看詳細條件</summary>
+        <dl>
+          <dt>觸發條件</dt><dd>${it.觸發條件}</dd>
+          <dt>今日款別</dt><dd>第 ${it.今日款別 || "—"} 款</dd>
+          <dt>連續一～八款</dt><dd>${it.連續一至八款} 日</dd>
+          <dt>連續第一款</dt><dd>${it.連續第一款} 日</dd>
+          <dt>近 10 / 30 日次數</dt><dd>${it.近10日次數} / ${it.近30日次數}</dd>
+          <dt>第一款門檻價</dt><dd>${it.第一款門檻價 ?? "—"}</dd>
+          <dt>淨值比 6 倍價</dt><dd>${it["第六款門檻價(PBR6)"] ?? "—"}</dd>
+        </dl>
+      </details>
+    </section>`).join("");
+}
+fetch("data.json?t=" + Date.now())
+  .then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+  .then(render)
+  .catch(e => { document.getElementById("meta").textContent = "讀不到 data.json，請先執行 disposal_predictor.py 產生資料。"; });
+</script>
+</body>
+</html>
