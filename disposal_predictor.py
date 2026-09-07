@@ -228,6 +228,9 @@ def main(base_date=None):
         for code, name, mkt, cls, raw in fetch_notice(d):
             hist[code][d] = cls
             info[code] = (name, mkt)
+    sample = fetch_notice(today)[:3]
+    for code, name, mkt, cls, raw in sample:
+        print(f"  [範例] {mkt} {code} {name} 款別={sorted(cls)} 原文={raw[:120]}")
     punished = fetch_punished_now(today)
     print(f"注意股累計 {len(hist)} 檔；目前處置中 {len(punished)} 檔 (排除)")
 
@@ -266,7 +269,12 @@ def main(base_date=None):
                          觸發條件="；".join(triggers), 需第一款=any(t.startswith("A") for t in triggers)))
 
     if not rows:
-        print("今日無「差一天進處置」候選。"); return
+        print("今日無「差一天進處置」候選。")
+        Path("docs").mkdir(exist_ok=True)
+        Path("docs/data.json").write_text(json.dumps({"base_date": today.isoformat(),
+            "generated": dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "items": [],
+            "debug": {"notice_codes": len(hist), "punished": len(punished)}}, ensure_ascii=False), "utf-8")
+        return
 
     # 門檻價
     bvps = load_bvps()
