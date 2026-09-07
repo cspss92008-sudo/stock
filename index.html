@@ -62,9 +62,9 @@ function targetText(item){
   const t = item.觸發條件 || "";
   if (t.includes("A") && item.第一款門檻價)
     return `明天漲過 ${Number(item.第一款門檻價).toLocaleString()} 就進處置`;
-  if ((item.今日款別||"").includes("6") && item["第六款門檻價(PBR6)"])
-    return `明天收在 ${Number(item["第六款門檻價(PBR6)"]).toLocaleString()} 以上且週轉率 ≥ 5% 就進處置`;
-  return "明天再被列注意（一～八款任一）就進處置";
+  const pbr = item["第六款門檻價(PBR6)"];
+  return "明天再被列注意（一～八款任一）就進處置" +
+         (pbr ? `；若走淨值比路線約需收在 ${Number(pbr).toLocaleString()} 以上` : "");
 }
 function render(data){
   document.getElementById("meta").textContent =
